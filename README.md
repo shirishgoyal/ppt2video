@@ -16,5 +16,8 @@ Save
 
 Audio files must be saved in audio folder in sequence like 000.mp3, 001.mp3
 
+Install python dependencies:
+pip install -r requirements.txt
+
 In bash shell, run:
 python ppt2video.py
