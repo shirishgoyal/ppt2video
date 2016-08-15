@@ -1,39 +1,42 @@
-
-import httplib2
-import os
 import io
+import os
 import subprocess
 
+import httplib2
+import oauth2client
 from apiclient import discovery
 from apiclient.http import MediaIoBaseDownload
-from apiclient.errors import HttpError
-import oauth2client
 from oauth2client import client
 from oauth2client import tools
 
 try:
     import argparse
+
     flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
 except ImportError:
     flags = None
 
 import httplib2shim
+
 httplib2shim.patch()
 
-SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.file']
+SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly', 'https://www.googleapis.com/auth/drive',
+          'https://www.googleapis.com/auth/drive.file']
 CLIENT_SECRET_FILE = 'client_id.json'
 APPLICATION_NAME = 'PPT to Video'
 FILENAME = 'test.pdf'
 FFMPEG_BIN = "ffmpeg"
 
-FILE_ID = '1Eeq9uM05ltRXlWkltAHymkz9eNrNOhpK7OxJBpa8oWo'
+FILE_ID = '17qh3-e0PGA92uaErXFZ97gXuN4kqDeaeFafRPLSZt-Y'
 
 RETRYABLE_ERRORS = (httplib2.HttpLib2Error, IOError)
+
 
 def print_with_carriage_return(s):
     import sys
     sys.stdout.write('\r' + s)
     sys.stdout.flush()
+
 
 def get_credentials():
     """Gets valid user credentials from storage.
@@ -58,10 +61,11 @@ def get_credentials():
         flow.user_agent = APPLICATION_NAME
         if flags:
             credentials = tools.run_flow(flow, store, flags)
-        else: # Needed only for compatibility with Python 2.6
+        else:  # Needed only for compatibility with Python 2.6
             credentials = tools.run(flow, store)
         print 'Storing credentials to ' + credential_path
     return credentials
+
 
 def export_pdf():
     credentials = get_credentials()
@@ -73,13 +77,14 @@ def export_pdf():
     # files = service.files().list().execute()
     # for f in files['files']:
     #     print f['name']
-    
+
     print "Exporting..."
     request = service.files().export_media(fileId=FILE_ID,
-                                             mimeType='application/pdf')
+                                           mimeType='application/pdf')
     fh = io.FileIO(FILENAME, 'wb')
     downloader = MediaIoBaseDownload(fh, request)
     downloader.next_chunk()
+
 
 def clear_folder(folder):
     import os, shutil
@@ -88,10 +93,11 @@ def clear_folder(folder):
         try:
             if os.path.isfile(file_path):
                 os.unlink(file_path)
-            elif os.path.isdir(file_path): 
+            elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)
         except Exception as e:
             print e
+
 
 def generate_images():
     from wand.image import Image
@@ -111,11 +117,12 @@ def generate_images():
     clear_folder('videos')
 
     for count in range(total):
-        sequence = '%03d'%count
+        sequence = '%03d' % count
         generate_video(sequence)
-        file.write("file 'videos/%s.mp4'\n"%sequence)
+        file.write("file 'videos/%s.mp4'\n" % sequence)
 
     file.close()
+
 
 def generate_video(sequence):
     print "Generating frames..."
@@ -124,50 +131,54 @@ def generate_video(sequence):
     # ffmpeg -loop 1 -i image.jpg -i audio.wav -c:v libx264 -tune stillimage -c:a aac -strict experimental -b:a 192k -pix_fmt yuv420p -shortest out.mp4
 
     # check if audio exists for slide
-    if os.path.exists('audio/%s.mp3'%sequence):
+    if os.path.exists('audio/%s.mp3' % sequence):
         command = [FFMPEG_BIN,
                    '-y',  # (optional) overwrite output file if it exists
                    '-loop', '1',
-                   '-i', 'images/%s.png'%sequence,  # input comes from a 
-                   '-i', 'audio/%s.mp3'%sequence,  # input comes from a folder
+                   '-i', 'images/%s.png' % sequence,  # input comes from a
+                   '-i', 'audio/%s.mp3' % sequence,  # input comes from a folder
                    '-strict', 'experimental',
                    '-tune', 'stillimage',
-                   '-c:v', 'libx264', # video encoder
-                   '-c:a', 'aac', # audio format
-                   '-b:a', '192k', # audio rate
+                   '-c:v', 'libx264',  # video encoder
+                   '-c:a', 'aac',  # audio format
+                   '-b:a', '192k',  # audio rate
+                   '-ac', '2',  # audio channels
                    '-pix_fmt', 'yuv420p',
                    '-shortest',  # map audio to full video length
-                   'videos/%s.mp4'%sequence]
+                   'videos/%s.mp4' % sequence]
     else:
         command = [FFMPEG_BIN,
                    '-y',  # (optional) overwrite output file if it exists
                    '-loop', '1',
-                   '-i', 'images/%s.png'%sequence,  # input comes from a folder
+                   '-i', 'images/%s.png' % sequence,  # input comes from a folder
                    '-c:v', 'libx264',
-                   '-t', '5', # duration
+                   '-t', '5',  # duration
                    '-pix_fmt', 'yuv420p',
                    '-an',  # Tells FFMPEG not to expect any audio
-                   'videos/%s.mp4'%sequence]
+                   'videos/%s.mp4' % sequence]
 
-    subprocess.call(command,stdout=None,stderr=subprocess.STDOUT)
+    subprocess.call(command, stdout=None, stderr=subprocess.STDOUT)
+
 
 def merge_video():
     print "Generating video..."
 
     # ffmpeg -f concat -i mylist.txt -c copy output
     command = [FFMPEG_BIN,
-                   '-f', 
-                   'concat',
-                   '-i', 'video.txt',
-                   '-c', 'copy',
-                   'video.mp4']
+               '-f',
+               'concat',
+               '-i', 'video.txt',
+               '-c', 'copy',
+               'video.mp4']
 
-    subprocess.call(command,stdout=None,stderr=subprocess.STDOUT)
+    subprocess.call(command, stdout=None, stderr=subprocess.STDOUT)
+
 
 def main():
     export_pdf()
     generate_images()
     merge_video()
+
 
 if __name__ == '__main__':
     main()
