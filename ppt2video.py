@@ -106,7 +106,6 @@ def generate_images():
     clear_folder('images')
 
     total = 0
-    file = open("video.txt", "w")
 
     with Image(filename='test.pdf', resolution=300) as img:
         img.background_color = Color("white")
@@ -116,10 +115,14 @@ def generate_images():
 
     clear_folder('videos')
 
+    file = open("videos/video.txt", "w")
+
     for count in range(total):
         sequence = '%03d' % count
         generate_video(sequence)
-        file.write("file 'videos/%s.mp4'\n" % sequence)
+
+        file.write(" videos/%s.mpg" % sequence)
+        # file.write("file 'videos/%s.mpg'\n" % sequence)
 
     file.close()
 
@@ -139,23 +142,23 @@ def generate_video(sequence):
                    '-i', 'audio/%s.mp3' % sequence,  # input comes from a folder
                    '-strict', 'experimental',
                    '-tune', 'stillimage',
-                   '-c:v', 'libx264',  # video encoder
-                   '-c:a', 'aac',  # audio format
+                   '-c:v', 'mpeg2video',  # video encoder
+                   '-c:a', 'mp2',  # audio format
                    '-b:a', '192k',  # audio rate
                    '-ac', '2',  # audio channels
                    '-pix_fmt', 'yuv420p',
                    '-shortest',  # map audio to full video length
-                   'videos/%s.mp4' % sequence]
+                   'videos/%s.mpg' % sequence]
     else:
         command = [FFMPEG_BIN,
                    '-y',  # (optional) overwrite output file if it exists
                    '-loop', '1',
                    '-i', 'images/%s.png' % sequence,  # input comes from a folder
-                   '-c:v', 'libx264',
+                   '-c:v', 'mpeg2video',
                    '-t', '5',  # duration
                    '-pix_fmt', 'yuv420p',
                    '-an',  # Tells FFMPEG not to expect any audio
-                   'videos/%s.mp4' % sequence]
+                   'videos/%s.mpg' % sequence]
 
     subprocess.call(command, stdout=None, stderr=subprocess.STDOUT)
 
@@ -163,13 +166,31 @@ def generate_video(sequence):
 def merge_video():
     print "Generating video..."
 
+    video_list = ''
+
+    with open("videos/video.txt", "r") as videos:
+        video_list = videos.read()
+
+    command = ["cat",
+               video_list,
+               '>',
+               "videos/video.mpg"]
+
+    os.system(' '.join(command))
+
     # ffmpeg -f concat -i mylist.txt -c copy output
+    # command = [FFMPEG_BIN,
+    #            '-f',
+    #            'concat',
+    #            '-i', 'video.txt',
+    #            '-c', 'copy',
+    #            'video.mp4']
+
     command = [FFMPEG_BIN,
-               '-f',
-               'concat',
-               '-i', 'video.txt',
-               '-c', 'copy',
-               'video.mp4']
+               '-i', "videos/video.mpg",
+               '-strict', 'experimental',
+               '-preset', 'fast',
+               "video.mp4"]
 
     subprocess.call(command, stdout=None, stderr=subprocess.STDOUT)
 
